@@ -88,6 +88,8 @@ class BufferPoolManagerInstance : public BufferPoolManager {
    */
   Page *NewPgImp(page_id_t *page_id) override;
 
+  bool FindReplaceFrameL(frame_id_t *frame_id);
+
   /**
    * Deletes a page from the buffer pool.
    * @param page_id id of page to be deleted

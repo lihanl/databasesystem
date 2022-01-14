@@ -41,7 +41,6 @@ class Matrix {
   int rows_;
   /** The number of columns in the matrix */
   int cols_;
-
   /**
    * TODO(P0): Allocate the array in the constructor.
    * TODO(P0): Deallocate the array in the destructor.
@@ -112,19 +111,27 @@ class RowMatrix : public Matrix<T> {
    * @param rows The number of rows
    * @param cols The number of columns
    */
-  RowMatrix(int rows, int cols) : Matrix<T>(rows, cols) {}
+  RowMatrix(int rows, int cols) : Matrix<T>(rows, cols) {
+    Matrix<T>::rows_ = rows;
+    Matrix<T>::cols_ = cols;
+    Matrix<T>::linear_ = new T[Matrix<T>::rows_ * Matrix<T>::cols_]();
+    data_ = new T *[Matrix<T>::rows_]();
+    for (int i = 0; i < Matrix<T>::rows_; i++) {
+      data_[i] = &Matrix<T>::linear_[i * Matrix<T>::cols_];
+    }
+  }
 
   /**
    * TODO(P0): Add implementation
    * @return The number of rows in the matrix
    */
-  int GetRowCount() const override { return 0; }
+  int GetRowCount() const override { return Matrix<T>::rows_; }
 
   /**
    * TODO(P0): Add implementation
    * @return The number of columns in the matrix
    */
-  int GetColumnCount() const override { return 0; }
+  int GetColumnCount() const override { return Matrix<T>::cols_; }
 
   /**
    * TODO(P0): Add implementation
@@ -139,7 +146,10 @@ class RowMatrix : public Matrix<T> {
    * @throws OUT_OF_RANGE if either index is out of range
    */
   T GetElement(int i, int j) const override {
-    throw NotImplementedException{"RowMatrix::GetElement() not implemented."};
+    if (i < 0 || j < 0 || i >= Matrix<T>::rows_ || j >= Matrix<T>::cols_) {
+      throw Exception(ExceptionType::OUT_OF_RANGE, "Out of Range");
+    }
+    return data_[i][j];
   }
 
   /**
@@ -152,7 +162,12 @@ class RowMatrix : public Matrix<T> {
    * @param val The value to insert
    * @throws OUT_OF_RANGE if either index is out of range
    */
-  void SetElement(int i, int j, T val) override {}
+  void SetElement(int i, int j, T val) override {
+    if (i < 0 || j < 0 || i >= Matrix<T>::rows_ || j >= Matrix<T>::cols_) {
+      throw Exception(ExceptionType::OUT_OF_RANGE, "Out of Range");
+    }
+    data_[i][j] = val;
+  }
 
   /**
    * TODO(P0): Add implementation
@@ -166,15 +181,22 @@ class RowMatrix : public Matrix<T> {
    * @throws OUT_OF_RANGE if `source` is incorrect size
    */
   void FillFrom(const std::vector<T> &source) override {
-    throw NotImplementedException{"RowMatrix::FillFrom() not implemented."};
+    if (static_cast<int>(source.size()) != Matrix<T>::rows_ * Matrix<T>::cols_) {
+      throw Exception(ExceptionType::OUT_OF_RANGE, "Out of Range");
+    }
+    for (int i = 0; i < static_cast<int>(source.size()); i++) {
+      Matrix<T>::linear_[i] = source[i];
+    }
   }
-
   /**
    * TODO(P0): Add implementation
    *
    * Destroy a RowMatrix instance.
    */
-  ~RowMatrix() override = default;
+  ~RowMatrix() override {
+    delete[] data_;
+    delete[] Matrix<T>::linear_;
+  }
 
  private:
   /**
@@ -204,6 +226,21 @@ class RowMatrixOperations {
    */
   static std::unique_ptr<RowMatrix<T>> Add(const RowMatrix<T> *matrixA, const RowMatrix<T> *matrixB) {
     // TODO(P0): Add implementation
+    int ca = matrixA->RowMatrix<T>::GetColumnCount();
+    int ra = matrixA->RowMatrix<T>::GetRowCount();
+    int cb = matrixB->RowMatrix<T>::GetColumnCount();
+    int rb = matrixB->RowMatrix<T>::GetRowCount();
+    if (ca == cb && ra == rb) {
+      auto matrix = std::make_unique<RowMatrix<T>>(ra, ca);
+      for (int i = 0; i < ra; i++) {
+        for (int j = 0; j < ca; j++) {
+          int va = matrixA->RowMatrix<T>::GetElement(i, j);
+          int vb = matrixB->RowMatrix<T>::GetElement(i, j);
+          matrix->RowMatrix<T>::SetElement(i, j, va + vb);
+        }
+      }
+      return matrix;
+    }
     return std::unique_ptr<RowMatrix<T>>(nullptr);
   }
 
@@ -216,6 +253,24 @@ class RowMatrixOperations {
    */
   static std::unique_ptr<RowMatrix<T>> Multiply(const RowMatrix<T> *matrixA, const RowMatrix<T> *matrixB) {
     // TODO(P0): Add implementation
+    int ca = matrixA->RowMatrix<T>::GetColumnCount();
+    int ra = matrixA->RowMatrix<T>::GetRowCount();
+    int cb = matrixB->RowMatrix<T>::GetColumnCount();
+    int rb = matrixB->RowMatrix<T>::GetRowCount();
+
+    if (ca == rb) {
+      auto matrix = std::make_unique<RowMatrix<T>>(ra, cb);
+      for (int i = 0; i < ra; i++) {
+        for (int j = 0; j < cb; j++) {
+          int sum = 0;
+          for (int m = 0; m < ca; m++) {
+            sum += (matrixA->RowMatrix<T>::GetElement(i, m) * matrixB->RowMatrix<T>::GetElement(m, j));
+          }
+          matrix->RowMatrix<T>::SetElement(i, j, sum);
+        }
+      }
+      return matrix;
+    }
     return std::unique_ptr<RowMatrix<T>>(nullptr);
   }
 
@@ -230,6 +285,34 @@ class RowMatrixOperations {
   static std::unique_ptr<RowMatrix<T>> GEMM(const RowMatrix<T> *matrixA, const RowMatrix<T> *matrixB,
                                             const RowMatrix<T> *matrixC) {
     // TODO(P0): Add implementation
+    int ca = matrixA->RowMatrix<T>::GetColumnCount();
+    int ra = matrixA->RowMatrix<T>::GetRowCount();
+    int cb = matrixB->RowMatrix<T>::GetColumnCount();
+    int rb = matrixB->RowMatrix<T>::GetRowCount();
+    int cc = matrixC->RowMatrix<T>::GetColumnCount();
+    int rc = matrixC->RowMatrix<T>::GetRowCount();
+
+    if (ca == rb && ra == rc && cb == cc) {
+      auto matrix = std::make_unique<RowMatrix<T>>(rc, cc);
+      for (int i = 0; i < ra; i++) {
+        for (int j = 0; j < cb; j++) {
+          int sum = 0;
+          for (int m = 0; m < ca; m++) {
+            sum += (matrixA->RowMatrix<T>::GetElement(i, m) * matrixB->RowMatrix<T>::GetElement(m, j));
+          }
+          matrix->RowMatrix<T>::SetElement(i, j, sum);
+        }
+      }
+
+      for (int i = 0; i < rc; i++) {
+        for (int j = 0; j < cc; j++) {
+          int tmp = matrix->RowMatrix<T>::GetElement(i, j);
+          matrix->RowMatrix<T>::SetElement(i, j, tmp + matrixC->RowMatrix<T>::GetElement(i, j));
+        }
+      }
+      return matrix;
+    }
+
     return std::unique_ptr<RowMatrix<T>>(nullptr);
   }
 };

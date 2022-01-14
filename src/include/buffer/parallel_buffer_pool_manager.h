@@ -13,6 +13,7 @@
 #pragma once
 
 #include "buffer/buffer_pool_manager.h"
+#include "buffer/buffer_pool_manager_instance.h"
 #include "recovery/log_manager.h"
 #include "storage/disk/disk_manager.h"
 #include "storage/page/page.h"
@@ -28,6 +29,7 @@ class ParallelBufferPoolManager : public BufferPoolManager {
    * @param disk_manager the disk manager
    * @param log_manager the log manager (for testing only: nullptr = disable logging)
    */
+
   ParallelBufferPoolManager(size_t num_instances, size_t pool_size, DiskManager *disk_manager,
                             LogManager *log_manager = nullptr);
 
@@ -86,5 +88,13 @@ class ParallelBufferPoolManager : public BufferPoolManager {
    * Flushes all the pages in the buffer pool to disk.
    */
   void FlushAllPgsImp() override;
+
+ private:
+  uint32_t num_instances_;
+
+  BufferPoolManager **manager_instances_;
+  uint32_t instance_index_ = 0;
+  size_t pool_size_;
+  std::mutex latch_;
 };
 }  // namespace bustub
