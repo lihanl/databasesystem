@@ -132,6 +132,9 @@ class HashTableBucketPage {
    */
   bool IsEmpty();
 
+  void EmptyArray(std::vector<KeyType> *keys, std::vector<ValueType> *values);
+
+  bool CheckKeyValueExist(KeyType key, ValueType value, KeyComparator cmp);
   /**
    * Prints the bucket's occupancy information
    */

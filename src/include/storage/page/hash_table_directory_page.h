@@ -65,6 +65,8 @@ class HashTableDirectoryPage {
    */
   page_id_t GetBucketPageId(uint32_t bucket_idx);
 
+  void InitTable();
+
   /**
    * Updates the directory index using a bucket index and page_id
    *
@@ -171,6 +173,9 @@ class HashTableDirectoryPage {
    */
   uint32_t GetLocalHighBit(uint32_t bucket_idx);
 
+  void SeperatePageId(uint32_t old_bucket_id, uint32_t new_bucket_idx, page_id_t new_page_id);
+
+  void MergePageId(uint32_t bucket_id, uint32_t local_mask, page_id_t new_page_id);
   /**
    * VerifyIntegrity
    *

@@ -188,7 +188,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   page->pin_count_ = 0;
   page->page_id_ = INVALID_PAGE_ID;
   page->ResetMemory();
-  
+
   free_list_.emplace_back(frame_id);
   replacer_->Unpin(frame_id);
   page_table_.erase(page_id);
@@ -211,7 +211,6 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   if (page->pin_count_ == 0) {
     replacer_->Unpin(kv->second);
   }
-  
   latch_.unlock();
   return true;
 }

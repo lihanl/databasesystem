@@ -35,7 +35,7 @@ ParallelBufferPoolManager::~ParallelBufferPoolManager() {
 
 size_t ParallelBufferPoolManager::GetPoolSize() {
   // Get size of all BufferPoolManagerInstances
-  return num_instances_*pool_size_;
+  return num_instances_ * pool_size_;
 }
 
 BufferPoolManager *ParallelBufferPoolManager::GetBufferPoolManager(page_id_t page_id) {
