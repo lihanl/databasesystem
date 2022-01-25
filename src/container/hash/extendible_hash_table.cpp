@@ -97,10 +97,10 @@ bool HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
   HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(bucket_page_id);
   reinterpret_cast<Page *>(bucket_page)->RLatch();
   bool ret = bucket_page->GetValue(key, comparator_, result);
-  reinterpret_cast<Page *>(bucket_page)->RUnlatch();
 
   buffer_pool_manager_->UnpinPage(directory_page_id_, false, nullptr);
   buffer_pool_manager_->UnpinPage(bucket_page_id, false, nullptr);
+  reinterpret_cast<Page *>(bucket_page)->RUnlatch();
   table_latch_.RUnlock();
   return ret;
 }
@@ -117,25 +117,25 @@ bool HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(bucket_page_id);
   reinterpret_cast<Page *>(bucket_page)->WLatch();
   if (bucket_page->Insert(key, value, comparator_)) {
-    reinterpret_cast<Page *>(bucket_page)->WUnlatch();
     buffer_pool_manager_->UnpinPage(directory_page_id_, false, nullptr);
     buffer_pool_manager_->UnpinPage(bucket_page_id, true, nullptr);
+    reinterpret_cast<Page *>(bucket_page)->WUnlatch();
     table_latch_.WUnlock();
     return true;
   }
   if (bucket_page->IsFull() && !bucket_page->CheckKeyValueExist(key, value, comparator_)) {
     // full and does not have the kv pair, try split insert
     bool ret = SplitInsert(transaction, key, value);
-    reinterpret_cast<Page *>(bucket_page)->WUnlatch();
     buffer_pool_manager_->UnpinPage(directory_page_id_, true, nullptr);
     buffer_pool_manager_->UnpinPage(bucket_page_id, true, nullptr);
+    reinterpret_cast<Page *>(bucket_page)->WUnlatch();
     table_latch_.WUnlock();
     return ret;
   }
   // existed same kv pair, return false
-  reinterpret_cast<Page *>(bucket_page)->WUnlatch();
   buffer_pool_manager_->UnpinPage(directory_page_id_, false, nullptr);
   buffer_pool_manager_->UnpinPage(bucket_page_id, false, nullptr);
+  reinterpret_cast<Page *>(bucket_page)->WUnlatch();
   table_latch_.WUnlock();
   return false;
 }
@@ -187,10 +187,10 @@ bool HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
       old_page->Insert(keys[i], values[i], comparator_);
     }
   }
-  reinterpret_cast<Page *>(new_page)->WUnlatch();
   buffer_pool_manager_->UnpinPage(directory_page_id_, true, nullptr);
   buffer_pool_manager_->UnpinPage(old_page_id, true, nullptr);
   buffer_pool_manager_->UnpinPage(new_page_id, true, nullptr);
+  reinterpret_cast<Page *>(new_page)->WUnlatch();
   return true;
 }
 
@@ -206,9 +206,9 @@ bool HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   HASH_TABLE_BUCKET_TYPE *cur_page = FetchBucketPage(page_id);
   reinterpret_cast<Page *>(cur_page)->WLatch();
   if (!cur_page->Remove(key, value, comparator_)) {
-    reinterpret_cast<Page *>(cur_page)->WUnlatch();
     buffer_pool_manager_->UnpinPage(directory_page_id_, false, nullptr);
     buffer_pool_manager_->UnpinPage(page_id, false, nullptr);
+    reinterpret_cast<Page *>(cur_page)->WUnlatch();
     table_latch_.WUnlock();
     return false;
   }
