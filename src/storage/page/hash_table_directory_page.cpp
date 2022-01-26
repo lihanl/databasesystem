@@ -49,7 +49,16 @@ void HashTableDirectoryPage::IncrGlobalDepth() {
   }
 }
 
-void HashTableDirectoryPage::DecrGlobalDepth() { global_depth_--; }
+void HashTableDirectoryPage::DecrGlobalDepth() {
+  uint32_t mask = 1 << (global_depth_ - 1);
+  for (uint32_t bucket_idx = 0; bucket_idx < static_cast<uint32_t>(1 << global_depth_); bucket_idx++) {
+    if ((bucket_idx & mask) != 0) {
+      bucket_page_ids_[bucket_idx] = INVALID_PAGE_ID;
+      local_depths_[bucket_idx] = 0;
+    }
+  }
+  global_depth_--;
+}
 
 page_id_t HashTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) { return bucket_page_ids_[bucket_idx]; }
 
@@ -95,7 +104,7 @@ void HashTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) {
     }
   }
 
-  if (all_less) {
+  if (all_less && global_depth_ > 1) {
     DecrGlobalDepth();
   }
 }
