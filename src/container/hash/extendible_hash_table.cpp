@@ -233,27 +233,22 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
   HashTableDirectoryPage *directory_page = FetchDirectoryPage();
   uint32_t index = KeyToDirectoryIndex(key, directory_page);
 
-  if (directory_page->GetLocalDepth(index) == directory_page->GetGlobalDepth()) {
-    uint32_t global_depth = directory_page->GetGlobalDepth();
-    uint32_t merge_page_index = index ^ (1 << (global_depth - 1));
-    page_id_t merge_page_id = directory_page->GetBucketPageId(merge_page_index);
+  uint32_t local_depth = directory_page->GetLocalDepth(index);
+  uint32_t merge_page_index = index ^ (1 << (local_depth - 1));
+  if (local_depth != directory_page->GetLocalDepth(merge_page_index) || local_depth == 0) {
+    buffer_pool_manager_->UnpinPage(directory_page_id_, false, nullptr);
+    return;
+  }
 
+  if (directory_page->GetLocalDepth(index) == directory_page->GetGlobalDepth()) {
+    page_id_t merge_page_id = directory_page->GetBucketPageId(merge_page_index);
     directory_page->SetBucketPageId(index, merge_page_id);
     directory_page->SetBucketPageId(merge_page_index, merge_page_id);
     directory_page->DecrLocalDepth(index);
   } else {
-    uint32_t local_depth = directory_page->GetLocalDepth(index);
     uint32_t next_local_mask =
         ((1 << local_depth) - 1) >> 1;  // create mask for local depth (after decreased, thats what the >>1 for)
-    uint32_t global_mask = directory_page->GetGlobalDepthMask();
-    page_id_t merge_page_id = INVALID_PAGE_ID;
-    for (uint32_t i = 0; i <= global_mask; i++) {
-      if (((index & next_local_mask) == (i & next_local_mask)) &&
-          directory_page->GetLocalHighBit(index) != directory_page->GetLocalHighBit(i)) {
-        merge_page_id = directory_page->GetBucketPageId(i);
-        break;
-      }
-    }
+    page_id_t merge_page_id = directory_page->GetBucketPageId(merge_page_index);
     directory_page->MergePageId(index, next_local_mask, merge_page_id);
     directory_page->DecrLocalDepth(index);
   }
@@ -262,7 +257,7 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
   page_id_t new_page_id = directory_page->GetBucketPageId(index);
   HASH_TABLE_BUCKET_TYPE *new_page = FetchBucketPage(new_page_id);
   reinterpret_cast<Page *>(new_page)->WLatch();
-  if (new_page->IsEmpty()) {
+  if (new_page->IsEmpty() && directory_page->GetGlobalDepth() > 0) {
     Merge(transaction, key, value);
     buffer_pool_manager_->UnpinPage(directory_page_id_, true, nullptr);
     buffer_pool_manager_->UnpinPage(new_page_id, true, nullptr);
@@ -271,6 +266,8 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
     buffer_pool_manager_->UnpinPage(new_page_id, false, nullptr);
   }
   reinterpret_cast<Page *>(new_page)->WUnlatch();
+  // std::cout<< "After Merge\n";
+  // directory_page->PrintDirectory();
 }
 
 /*****************************************************************************
