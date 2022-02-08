@@ -58,10 +58,8 @@ bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator cmp) {
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; bucket_idx++) {
-    if (!IsOccupied(bucket_idx)) {
-      break;
-    }
-    if (IsReadable(bucket_idx) && cmp(array_[bucket_idx].first, key) == 0 && array_[bucket_idx].second == value) {
+    if (IsOccupied(bucket_idx) && IsReadable(bucket_idx) && cmp(array_[bucket_idx].first, key) == 0 &&
+        array_[bucket_idx].second == value) {
       RemoveAt(bucket_idx);
       return true;
     }
@@ -72,10 +70,8 @@ bool HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::CheckKeyValueExist(KeyType key, ValueType value, KeyComparator cmp) {
   for (size_t bucket_idx = 0; bucket_idx < BUCKET_ARRAY_SIZE; bucket_idx++) {
-    if (!IsOccupied(bucket_idx)) {
-      break;
-    }
-    if (IsReadable(bucket_idx) && cmp(array_[bucket_idx].first, key) == 0 && array_[bucket_idx].second == value) {
+    if (IsOccupied(bucket_idx) && IsReadable(bucket_idx) && cmp(array_[bucket_idx].first, key) == 0 &&
+        array_[bucket_idx].second == value) {
       return true;
     }
   }
