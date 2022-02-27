@@ -15,12 +15,42 @@
 #include <memory>
 #include <utility>
 
+#include <unordered_map>
+#include <vector>
+#include "common/util/hash_util.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
+#include "execution/expressions/abstract_expression.h"
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
 
 namespace bustub {
+struct HashJoinKey {
+  /** join keys **/
+  std::vector<Value> join_keys_;
+
+  bool operator==(const HashJoinKey &other) const {
+    for (uint32_t i = 0; i < other.join_keys_.size(); i++) {
+      if (join_keys_[i].CompareEquals(other.join_keys_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+class HashJoinKeysHashFunction {
+ public:
+  std::size_t operator()(const HashJoinKey &hash_join_key) const {
+    size_t map_key = 0;
+    for (const auto &key : hash_join_key.join_keys_) {
+      if (!key.IsNull()) {
+        map_key = bustub::HashUtil::CombineHashes(map_key, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return map_key;
+  }
+};
 
 /**
  * HashJoinExecutor executes a nested-loop JOIN on two tables.
@@ -52,8 +82,21 @@ class HashJoinExecutor : public AbstractExecutor {
   const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
 
  private:
+  std::vector<Value> CombinedTuples(const Tuple &left_tuple, const Tuple &right_tuple);
+  void InsertCombine(const HashJoinKey &join_key, const Tuple &join_tuple);
+
   /** The NestedLoopJoin plan node to be executed. */
   const HashJoinPlanNode *plan_;
+  const AbstractExpression *left_key_expression_;
+  const AbstractExpression *right_key_expression_;
+  Transaction *txn_;
+  std::unique_ptr<AbstractExecutor> left_child_;
+  std::unique_ptr<AbstractExecutor> right_child_;
+  std::unordered_map<HashJoinKey, std::vector<Tuple>, HashJoinKeysHashFunction> hm_{};
+  bool more_combination_;
+  std::vector<Tuple> cur_vector_;
+  size_t cur_id_;
+  Tuple cur_right_tuple_;
 };
 
 }  // namespace bustub

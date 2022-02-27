@@ -15,10 +15,42 @@
 #include <memory>
 #include <utility>
 
+#include <unordered_map>
+#include <vector>
+#include "common/util/hash_util.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/distinct_plan.h"
 
 namespace bustub {
+
+struct DistinctValueKey {
+  std::vector<Value> values_;
+
+  bool operator==(const DistinctValueKey &other) const {
+    for (uint32_t i = 0; i < other.values_.size(); i++) {
+      if (values_[i].CompareEquals(other.values_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+class DistinctHashFunction {
+ public:
+  std::size_t operator()(const DistinctValueKey &distinct_key) const {
+    size_t map_key = 0;
+    for (const auto &key : distinct_key.values_) {
+      if (!key.IsNull()) {
+        map_key = bustub::HashUtil::CombineHashes(map_key, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return map_key;
+  }
+
+  // private:
+  //   HashFunction<Value> hash_fn_;
+};
 
 /**
  * DistinctExecutor removes duplicate rows from child ouput.
@@ -49,9 +81,13 @@ class DistinctExecutor : public AbstractExecutor {
   const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
 
  private:
+  void Insert(const DistinctValueKey &distinct_key);
   /** The distinct plan node to be executed */
   const DistinctPlanNode *plan_;
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  Catalog *catalog_;
+  Transaction *txn_;
+  std::unordered_map<DistinctValueKey, size_t, DistinctHashFunction> hm_{};
 };
 }  // namespace bustub
