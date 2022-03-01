@@ -47,11 +47,14 @@ bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
   if (more_combination_) {
     std::vector<Value> vals = CombinedTuples(cur_vector_[cur_id_++], cur_right_tuple_);
     *tuple = Tuple(vals, GetOutputSchema());
-    more_combination_ = cur_id_ < cur_vector_.size();
+    if (cur_id_ == cur_vector_.size()) {
+      cur_id_ = 0;
+      more_combination_ = false;
+    }
     return true;
   }
   while (right_child_->Next(&right_tuple, rid)) {
-    right_key.join_keys_.push_back(right_key_expression_->Evaluate(&right_tuple, left_child_->GetOutputSchema()));
+    right_key.join_keys_.push_back(right_key_expression_->Evaluate(&right_tuple, right_child_->GetOutputSchema()));
     if (hm_.count(right_key) == 0) {
       continue;
     }
@@ -59,7 +62,7 @@ bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
     cur_id_ = 0;
     cur_vector_ = hm_[right_key];
     cur_right_tuple_ = right_tuple;
-    std::vector<Value> vals = CombinedTuples(hm_[right_key][cur_id_++], right_tuple);
+    std::vector<Value> vals = CombinedTuples(cur_vector_[cur_id_++], cur_right_tuple_);
     *tuple = Tuple(vals, GetOutputSchema());
     return true;
   }
